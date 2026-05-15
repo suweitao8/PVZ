@@ -269,7 +269,8 @@ public partial class NGame : Control
 		}
 		else if (StartOnMainMenu)
 		{
-			bool skipLogo = DebugSettings.DevSkip || SaveManager.Instance.SettingsSave.SkipIntroLogo || CommandLineHelper.HasArg("fastmp");
+			// 开发模式：始终跳过 logo 动画
+			bool skipLogo = true; // DebugSettings.DevSkip || SaveManager.Instance.SettingsSave.SkipIntroLogo || CommandLineHelper.HasArg("fastmp");
 			await LaunchMainMenu(skipLogo);
 			CheckShowSaveFileError(progressReadResult, prefsReadResult, OneTimeInitialization.SettingsReadResult);
 			CheckShowLocalizationOverrideErrors();
