@@ -1,0 +1,111 @@
+# twig_slime_s_0.atlas
+
+[metadata]
+source: twig_slime_s.skel
+fps: 8
+created: 2026-05-04
+
+[texture]
+file: twig_slime_s_0.png
+size: 2048, 2048
+
+[animation: attack]
+loop: false
+frames: 8
+frame_00:
+  bounds: 1240, 0, 155, 83
+frame_01:
+  bounds: 1395, 0, 155, 83
+frame_02:
+  bounds: 1550, 0, 155, 83
+frame_03:
+  bounds: 1705, 0, 155, 83
+frame_04:
+  bounds: 1860, 0, 155, 83
+frame_05:
+  bounds: 0, 83, 155, 83
+frame_06:
+  bounds: 155, 83, 155, 83
+frame_07:
+  bounds: 310, 83, 155, 83
+
+[animation: cast]
+loop: false
+frames: 8
+frame_00:
+  bounds: 465, 83, 155, 83
+frame_01:
+  bounds: 620, 83, 155, 83
+frame_02:
+  bounds: 775, 83, 155, 83
+frame_03:
+  bounds: 930, 83, 155, 83
+frame_04:
+  bounds: 1085, 83, 155, 83
+frame_05:
+  bounds: 1240, 83, 155, 83
+frame_06:
+  bounds: 1395, 83, 155, 83
+frame_07:
+  bounds: 1550, 83, 155, 83
+
+[animation: die]
+loop: false
+frames: 8
+frame_00:
+  bounds: 930, 166, 155, 83
+frame_01:
+  bounds: 1085, 166, 155, 83
+frame_02:
+  bounds: 1240, 166, 155, 83
+frame_03:
+  bounds: 1395, 166, 155, 83
+frame_04:
+  bounds: 1550, 166, 155, 83
+frame_05:
+  bounds: 1705, 166, 155, 83
+frame_06:
+  bounds: 1860, 166, 155, 83
+frame_07:
+  bounds: 0, 249, 155, 83
+
+[animation: hurt]
+loop: false
+frames: 8
+frame_00:
+  bounds: 1705, 83, 155, 83
+frame_01:
+  bounds: 1860, 83, 155, 83
+frame_02:
+  bounds: 0, 166, 155, 83
+frame_03:
+  bounds: 155, 166, 155, 83
+frame_04:
+  bounds: 310, 166, 155, 83
+frame_05:
+  bounds: 465, 166, 155, 83
+frame_06:
+  bounds: 620, 166, 155, 83
+frame_07:
+  bounds: 775, 166, 155, 83
+
+[animation: idle_loop]
+loop: true
+frames: 8
+frame_00:
+  bounds: 0, 0, 155, 83
+frame_01:
+  bounds: 155, 0, 155, 83
+frame_02:
+  bounds: 310, 0, 155, 83
+frame_03:
+  bounds: 465, 0, 155, 83
+frame_04:
+  bounds: 620, 0, 155, 83
+frame_05:
+  bounds: 775, 0, 155, 83
+frame_06:
+  bounds: 930, 0, 155, 83
+frame_07:
+  bounds: 1085, 0, 155, 83
+

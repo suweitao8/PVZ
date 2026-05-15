@@ -1,0 +1,61 @@
+[gd_scene load_steps=6 format=3 uid="uid://pvz_game_scene"]
+
+[ext_resource type="Script" path="res://src/PvZ/Core/PvZGameManager.cs" id="1_game_manager"]
+[ext_resource type="Script" path="res://src/PvZ/Core/PvZGridManager.cs" id="2_grid_manager"]
+[ext_resource type="Script" path="res://src/PvZ/Core/PvZWaveManager.cs" id="3_wave_manager"]
+[ext_resource type="Script" path="res://src/PvZ/UI/PvZPlantPanel.cs" id="4_plant_panel"]
+
+[sub_resource type="Environment" id="Environment_pvz"]
+background_mode = 3
+
+[node name="PvZGame" type="Node2D"]
+script = ExtResource("1_game_manager")
+InitialSun = 50
+TotalWaves = 10
+SunDropInterval = 7.5
+SunDropRandomOffset = 2.5
+SkySunValue = 25
+
+[node name="GridManager" type="Node2D" parent="."]
+script = ExtResource("2_grid_manager")
+Rows = 5
+Cols = 9
+CellWidth = 100.0
+CellHeight = 100.0
+GridOffset = Vector2(200, 200)
+
+[node name="WaveManager" type="Node2D" parent="."]
+script = ExtResource("3_wave_manager")
+ZombieSpawnX = 1800.0
+RowStartY = 200.0
+RowSpacing = 100.0
+
+[node name="ProjectileContainer" type="Node2D" parent="."]
+
+[node name="SunContainer" type="Node2D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PlantPanel" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_bottom = 120.0
+grow_horizontal = 2
+script = ExtResource("4_plant_panel")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_left = 150.0
+offset_top = 150.0
+offset_right = 1750.0
+offset_bottom = 750.0
+color = Color(0.4, 0.6, 0.2, 1)
+
+[node name="GridLines" type="Line2D" parent="."]
+points = PackedVector2Array()
+width = 2.0
+default_color = Color(0.3, 0.5, 0.1, 0.5)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+offset = Vector2(960, 540)
