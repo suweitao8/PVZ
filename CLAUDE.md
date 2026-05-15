@@ -96,7 +96,8 @@ Claude 拥有完整权限，可以直接执行任务，无需请求批准。
 dotnet build
 
 # 直接运行游戏（不打开编辑器）
-start "" "D:/Apps/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mono_win64.exe" --path "D:/Github/PVZ"
+# 注意：使用 -- 分隔符指定场景路径
+start "" "D:/Apps/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mono_win64.exe" --path "D:/Github/PVZ" -- res://scenes/spire_defense/spire_defense_game.tscn
 ```
 
 ## 编码标准
