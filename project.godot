@@ -16,7 +16,7 @@ General/banks_path="res://banks/desktop"
 [application]
 
 config/name="Slay the Spire 2"
-run/main_scene="res://scenes/game.tscn"
+run/main_scene="res://scenes/spire_defense/spire_defense_game.tscn"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="SlayTheSpire2"
 config/features=PackedStringArray("4.5", "C#", "Mobile")

@@ -115,8 +115,9 @@ public partial class SDHandArea : Control
             card.Hovered += OnCardHovered;
             card.Unhovered += OnCardUnhovered;
 
-            // 设置初始位置（屏幕外）
-            card.SetPositionInstantly(new Vector2(Size.X / 2f, Size.Y + 100f));
+            // 设置初始位置（从屏幕下方进入）
+            float centerX = Size.X / 2f;
+            card.SetPositionInstantly(new Vector2(centerX, Size.Y + 100f));
             card.SetScaleInstantly(Vector2.One * 0.5f);
 
             UpdateDeckCount();
@@ -144,25 +145,34 @@ public partial class SDHandArea : Control
     {
         if (_hand.Count == 0) return;
 
+        // 手牌区域中心点（屏幕下方中间）
+        // SDHandArea 的 anchor 是 bottom，所以 Size.Y 是区域高度
+        // 卡牌应该排列在区域的上半部分，形成一个弧形
+        float centerX = Size.X / 2f;
+        float centerY = Size.Y / 2f;  // 区域中心偏上一点
+
         for (int i = 0; i < _hand.Count; i++)
         {
             var card = _hand[i];
             if (card == _draggingCard) continue;
 
-            // 使用 STS2 的 HandPosHelper 获取位置和角度
-            var pos = HandPosHelper.GetPosition(_hand.Count, i) * 0.5f;  // 缩放适配
+            // 使用 STS2 的 HandPosHelper 获取相对位置和角度
+            var relativePos = HandPosHelper.GetPosition(_hand.Count, i) * 0.5f;  // 缩放适配
             var angle = HandPosHelper.GetAngle(_hand.Count, i);
             var scale = HandPosHelper.GetScale(_hand.Count) * 0.8f;
 
+            // 转换为相对于手牌区域中心的绝对位置
+            var absolutePos = new Vector2(centerX + relativePos.X, centerY + relativePos.Y);
+
             if (animate)
             {
-                card.SetTargetPosition(pos);
+                card.SetTargetPosition(absolutePos);
                 card.SetTargetAngle(angle);
                 card.SetTargetScale(scale);
             }
             else
             {
-                card.SetPositionInstantly(pos);
+                card.SetPositionInstantly(absolutePos);
                 card.SetAngleInstantly(angle);
                 card.SetScaleInstantly(scale);
             }
