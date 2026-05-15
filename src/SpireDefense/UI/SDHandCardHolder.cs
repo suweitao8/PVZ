@@ -1,25 +1,53 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
-using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.SpireDefense.Core;
 
 namespace MegaCrit.Sts2.SpireDefense.UI;
 
 /// <summary>
 /// 尖塔防卫战卡牌持有者
-/// 包装 STS2 的 NHandCardHolder，添加尖塔防卫战特有功能
+/// 使用 NClickableControl 实现悬停检测，复用 STS2 动画逻辑
 /// </summary>
 public partial class SDHandCardHolder : Control
 {
-    // 内部的 NHandCardHolder
-    private NHandCardHolder _innerHolder;
+    // 动画常量（来自 NHandCardHolder）
+    private const float _rotateSpeed = 10f;
+    private const float _scaleSpeed = 8f;
+    private const float _moveSpeed = 7f;
+    private const float _angleSnapThreshold = 0.1f;
+    private const float _scaleSnapThreshold = 0.002f;
+    private const float _positionSnapThreshold = 1f;
+
+    // 目标值
+    private Vector2 _targetPosition;
+    private float _targetAngle;
+    private Vector2 _targetScale = Vector2.One;
+
+    // 动画取消令牌
+    private CancellationTokenSource? _angleCancelToken;
+    private CancellationTokenSource? _positionCancelToken;
+    private CancellationTokenSource? _scaleCancelToken;
 
     // 卡牌数据
     private SDUnitType _unitType;
     private int _energyCost = 50;
     private UnitConfig? _unitConfig;
+
+    // 悬停状态
+    private bool _isFocused;
+    private Tween? _hoverTween;
+
+    // 缩放常量
+    private static readonly Vector2 SmallScale = Vector2.One * 0.8f;
+    private static readonly Vector2 HoverScale = Vector2.One;
+
+    // Hitbox（使用 STS2 的 NClickableControl）
+    private NClickableControl _hitbox;
 
     // 事件
     public event Action<SDHandCardHolder>? CardDragStarted;
@@ -42,36 +70,8 @@ public partial class SDHandCardHolder : Control
     public override void _Ready()
     {
         CustomMinimumSize = new Vector2(150, 200);
-
-        // 加载并实例化 NHandCardHolder 场景
-        var scene = ResourceLoader.Load<PackedScene>("res://scenes/cards/holders/hand_card_holder.tscn");
-        if (scene == null)
-        {
-            Log.Error("[SDHandCardHolder] Failed to load hand_card_holder.tscn");
-            CreateFallbackVisuals();
-            return;
-        }
-
-        _innerHolder = scene.Instantiate<NHandCardHolder>();
-        if (_innerHolder == null)
-        {
-            Log.Error("[SDHandCardHolder] Failed to instantiate NHandCardHolder");
-            CreateFallbackVisuals();
-            return;
-        }
-
-        AddChild(_innerHolder);
-
-        // 创建卡牌视觉内容
+        CreateHitbox();
         CreateCardVisuals();
-
-        // 连接信号
-        _innerHolder.Connect(NHandCardHolder.SignalName.HolderFocused,
-            Callable.From<NHandCardHolder>(OnHolderFocused));
-        _innerHolder.Connect(NHandCardHolder.SignalName.HolderUnfocused,
-            Callable.From<NHandCardHolder>(OnHolderUnfocused));
-        _innerHolder.Connect(NHandCardHolder.SignalName.HolderMouseClicked,
-            Callable.From<NCardHolder>(OnHolderClicked));
     }
 
     private void SetupCard()
@@ -80,49 +80,92 @@ public partial class SDHandCardHolder : Control
         _energyCost = _unitConfig?.EnergyCost ?? 50;
     }
 
-    private void CreateFallbackVisuals()
+    private void CreateHitbox()
     {
-        var bg = new ColorRect
+        // 使用 STS2 的 NClickableControl 作为 Hitbox
+        _hitbox = new NClickableControl
         {
-            Color = GetCardBackgroundColor(),
+            Name = "Hitbox",
             Size = new Vector2(150, 200),
-            Position = new Vector2(-75, -100)
+            Position = new Vector2(-75, -100),
+            MouseFilter = MouseFilterEnum.Stop
         };
-        AddChild(bg);
+        AddChild(_hitbox);
+
+        // 连接信号
+        _hitbox.Connect(NClickableControl.SignalName.Focused, Callable.From<NClickableControl>(OnHitboxFocused));
+        _hitbox.Connect(NClickableControl.SignalName.Unfocused, Callable.From<NClickableControl>(OnHitboxUnfocused));
+        _hitbox.Connect(NClickableControl.SignalName.MousePressed, Callable.From<InputEvent>(OnHitboxPressed));
+        _hitbox.Connect(NClickableControl.SignalName.MouseReleased, Callable.From<InputEvent>(OnHitboxReleased));
+    }
+
+    private void OnHitboxFocused(NClickableControl control)
+    {
+        if (_isFocused) return;
+        _isFocused = true;
+        ZIndex = 50;
+
+        // 悬停效果：立即变水平并放大
+        _hoverTween?.Kill();
+        SetAngleInstantly(0f);
+        Scale = HoverScale;
+    }
+
+    private void OnHitboxUnfocused(NClickableControl control)
+    {
+        if (!_isFocused) return;
+        _isFocused = false;
+        ZIndex = 0;
+
+        // 取消悬停：动画缩小
+        _hoverTween?.Kill();
+        _hoverTween = CreateTween();
+        _hoverTween.TweenProperty(this, "scale", SmallScale, 0.3).SetEase(Tween.EaseType.Out);
+    }
+
+    private void OnHitboxPressed(InputEvent evt)
+    {
+        if (evt is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left && mb.Pressed)
+        {
+            CardDragStarted?.Invoke(this);
+        }
+    }
+
+    private void OnHitboxReleased(InputEvent evt)
+    {
+        if (evt is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+        {
+            CardDragEnded?.Invoke(this, GetGlobalMousePosition());
+        }
     }
 
     private void CreateCardVisuals()
     {
-        // 在 Hitbox 后面添加卡牌内容
-        var content = new Control
-        {
-            Name = "CardContent",
-            Position = new Vector2(-75, -100),
-            Size = new Vector2(150, 200),
-            ZIndex = -1  // 在 Hitbox 后面
-        };
-
         // 卡牌背景
         var bg = new ColorRect
         {
             Color = GetCardBackgroundColor(),
-            Size = new Vector2(150, 200)
+            Size = new Vector2(150, 200),
+            Position = new Vector2(-75, -100),
+            ZIndex = -1
         };
-        content.AddChild(bg);
+        AddChild(bg);
 
         // 卡牌边框
         var border = new ReferenceRect
         {
             BorderColor = GetCardBorderColor(),
             EditorOnly = false,
-            Size = new Vector2(150, 200)
+            Size = new Vector2(150, 200),
+            Position = new Vector2(-75, -100),
+            ZIndex = -1
         };
-        content.AddChild(border);
+        AddChild(border);
 
         // 能量消耗
         var costLabel = new Label
         {
-            Position = new Vector2(5, 5),
+            Position = new Vector2(-70, -95),
             Size = new Vector2(40, 40),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
@@ -130,12 +173,12 @@ public partial class SDHandCardHolder : Control
         };
         costLabel.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
         costLabel.AddThemeFontSizeOverride("font_size", 24);
-        content.AddChild(costLabel);
+        AddChild(costLabel);
 
         // 单位名称
         var nameLabel = new Label
         {
-            Position = new Vector2(5, 145),
+            Position = new Vector2(-70, 50),
             Size = new Vector2(140, 28),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
@@ -143,73 +186,103 @@ public partial class SDHandCardHolder : Control
         };
         nameLabel.AddThemeColorOverride("font_color", Colors.White);
         nameLabel.AddThemeFontSizeOverride("font_size", 16);
-        content.AddChild(nameLabel);
+        AddChild(nameLabel);
 
         // 单位颜色预览
         var preview = new ColorRect
         {
             Color = GetUnitColor(),
             Size = new Vector2(80, 60),
-            Position = new Vector2(35, 60)
+            Position = new Vector2(-40, -35),
+            ZIndex = -1
         };
-        content.AddChild(preview);
-
-        _innerHolder.AddChild(content);
+        AddChild(preview);
     }
 
-    private void OnHolderFocused(NHandCardHolder holder)
-    {
-        // 悬停时通知 SDHandArea
-    }
-
-    private void OnHolderUnfocused(NHandCardHolder holder)
-    {
-        // 取消悬停时通知 SDHandArea
-    }
-
-    private void OnHolderClicked(NCardHolder holder)
-    {
-        CardDragStarted?.Invoke(this);
-    }
-
-    #region 代理 NHandCardHolder 方法
+    #region 动画（复用 STS2 逻辑）
 
     public void SetTargetPosition(Vector2 position)
     {
-        _innerHolder?.SetTargetPosition(position);
+        _targetPosition = position;
+        _positionCancelToken?.Cancel();
+        _positionCancelToken = new CancellationTokenSource();
+        TaskHelper.RunSafely(AnimPosition(_positionCancelToken));
     }
 
     public void SetTargetAngle(float angle)
     {
-        _innerHolder?.SetTargetAngle(angle);
+        _targetAngle = angle;
+        _angleCancelToken?.Cancel();
+        _angleCancelToken = new CancellationTokenSource();
+        TaskHelper.RunSafely(AnimAngle(_angleCancelToken));
     }
 
     public void SetTargetScale(Vector2 scale)
     {
-        _innerHolder?.SetTargetScale(scale);
+        _targetScale = scale;
+        _scaleCancelToken?.Cancel();
+        _scaleCancelToken = new CancellationTokenSource();
+        TaskHelper.RunSafely(AnimScale(_scaleCancelToken));
     }
 
     public void SetAngleInstantly(float angle)
     {
-        _innerHolder?.SetAngleInstantly(angle);
+        _angleCancelToken?.Cancel();
+        RotationDegrees = angle;
     }
 
     public void SetScaleInstantly(Vector2 scale)
     {
-        _innerHolder?.SetScaleInstantly(scale);
+        _scaleCancelToken?.Cancel();
+        Scale = scale;
     }
 
     public void SetPositionInstantly(Vector2 position)
     {
-        if (_innerHolder != null)
+        _positionCancelToken?.Cancel();
+        Position = position;
+    }
+
+    private async Task AnimAngle(CancellationTokenSource cancelToken)
+    {
+        while (!cancelToken.IsCancellationRequested)
         {
-            _innerHolder.Position = position;
+            RotationDegrees = Mathf.Lerp(RotationDegrees, _targetAngle, (float)GetProcessDeltaTime() * _rotateSpeed);
+            if (Mathf.Abs(RotationDegrees - _targetAngle) < _angleSnapThreshold)
+            {
+                RotationDegrees = _targetAngle;
+                break;
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
     }
 
-    public void BeginDrag()
+    private async Task AnimScale(CancellationTokenSource cancelToken)
     {
-        _innerHolder?.BeginDrag();
+        while (!cancelToken.IsCancellationRequested)
+        {
+            Scale = Scale.Lerp(_targetScale, (float)GetProcessDeltaTime() * _scaleSpeed);
+            if (Mathf.Abs(_targetScale.X - Scale.X) < _scaleSnapThreshold)
+            {
+                Scale = _targetScale;
+                break;
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
+    private async Task AnimPosition(CancellationTokenSource cancelToken)
+    {
+        while (!cancelToken.IsCancellationRequested)
+        {
+            Position = Position.Lerp(_targetPosition, (float)GetProcessDeltaTime() * _moveSpeed);
+            if (Position.DistanceSquaredTo(_targetPosition) < _positionSnapThreshold)
+            {
+                Position = _targetPosition;
+                break;
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
     }
 
     #endregion
