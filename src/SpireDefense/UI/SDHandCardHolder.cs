@@ -39,15 +39,20 @@ public partial class SDHandCardHolder : Control
 
     // 拖拽状态
     private bool _isDragging = false;
-    private bool _isHovered = false;
     private Vector2 _dragOffset;
 
-    // 悬停缩放
-    private static readonly Vector2 HoverScale = new Vector2(0.9f, 0.9f);
-    private static readonly Vector2 DragScale = new Vector2(1.0f, 1.0f);
+    // 悬停状态（参考 STS2 NCardHolder）
+    private bool _isHovered = false;
+    private bool _isFocused = false;
+    private Tween? _hoverTween;
+
+    // 缩放常量
+    private static readonly Vector2 SmallScale = Vector2.One * 0.8f;
+    private static readonly Vector2 HoverScale = Vector2.One;
 
     // UI 组件
     private Control _cardVisual;
+    private Control _hitbox;  // 点击区域
 
     // 事件
     public event Action<SDHandCardHolder> DragStarted;
@@ -72,14 +77,99 @@ public partial class SDHandCardHolder : Control
     public override void _Ready()
     {
         CustomMinimumSize = new Vector2(150, 200);
-        MouseFilter = MouseFilterEnum.Stop;
         CreateVisuals();
+        CreateHitbox();
     }
 
     private void SetupCard()
     {
         _unitConfig = SDUnitFactory.GetUnitConfig(_unitType);
         _energyCost = _unitConfig?.EnergyCost ?? 50;
+    }
+
+    private void CreateHitbox()
+    {
+        // 创建点击区域（参考 STS2 的 NClickableControl）
+        _hitbox = new Control
+        {
+            Name = "Hitbox",
+            Size = new Vector2(150, 200),
+            Position = new Vector2(-75, -100),
+            MouseFilter = MouseFilterEnum.Stop  // 接收鼠标事件
+        };
+        AddChild(_hitbox);
+
+        // 连接鼠标事件
+        _hitbox.Connect(Control.SignalName.MouseEntered, Callable.From(OnMouseEntered));
+        _hitbox.Connect(Control.SignalName.MouseExited, Callable.From(OnMouseExited));
+        _hitbox.GuiInput += OnHitboxGuiInput;
+    }
+
+    private void OnMouseEntered()
+    {
+        _isHovered = true;
+        RefreshFocusState();
+    }
+
+    private void OnMouseExited()
+    {
+        _isHovered = false;
+        RefreshFocusState();
+    }
+
+    private void RefreshFocusState()
+    {
+        bool shouldFocus = _isHovered && !_isDragging;
+        if (_isFocused != shouldFocus)
+        {
+            _isFocused = shouldFocus;
+            DoHoverEffects(_isFocused);
+
+            if (_isFocused)
+            {
+                ZIndex = 50;
+                Hovered?.Invoke(this);
+            }
+            else
+            {
+                ZIndex = 0;
+                Unhovered?.Invoke(this);
+            }
+        }
+    }
+
+    private void DoHoverEffects(bool isHovered)
+    {
+        _hoverTween?.Kill();
+
+        if (isHovered)
+        {
+            // 悬停时立即变水平并放大
+            SetAngleInstantly(0f);
+            Scale = HoverScale;
+        }
+        else
+        {
+            // 取消悬停时动画缩小
+            _hoverTween = CreateTween();
+            _hoverTween.TweenProperty(this, "scale", SmallScale, 0.3).SetEase(Tween.EaseType.Out);
+        }
+    }
+
+    private void OnHitboxGuiInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mouseButton && mouseButton.ButtonIndex == MouseButton.Left)
+        {
+            if (mouseButton.Pressed)
+            {
+                _dragOffset = mouseButton.Position + new Vector2(75, 100);  // 调整偏移
+                BeginDrag();
+            }
+            else
+            {
+                EndDrag();
+            }
+        }
     }
 
     private void CreateVisuals()
@@ -343,7 +433,7 @@ public partial class SDHandCardHolder : Control
         _isDragging = true;
         ZIndex = 100;
         SetAngleInstantly(0f);
-        SetScaleInstantly(DragScale);
+        Scale = Vector2.One;
         DragStarted?.Invoke(this);
     }
 
@@ -352,59 +442,16 @@ public partial class SDHandCardHolder : Control
         _isDragging = false;
         ZIndex = 0;
         SetAngleInstantly(0f);
-        SetScaleInstantly(Vector2.One * 0.8f);
+        Scale = SmallScale;
     }
 
     #endregion
-
-    #region 鼠标事件
-
-    public override void _GuiInput(InputEvent @event)
-    {
-        if (@event is InputEventMouseButton mouseButton && mouseButton.ButtonIndex == MouseButton.Left)
-        {
-            if (mouseButton.Pressed)
-            {
-                _dragOffset = mouseButton.Position;
-                BeginDrag();
-            }
-            else
-            {
-                EndDrag();
-            }
-        }
-    }
 
     public override void _Input(InputEvent @event)
     {
         if (_isDragging && @event is InputEventMouseMotion)
         {
             GlobalPosition = GetGlobalMousePosition() - _dragOffset;
-        }
-    }
-
-    public override void _Notification(int what)
-    {
-        if (what == NotificationMouseEnter)
-        {
-            _isHovered = true;
-            if (!_isDragging)
-            {
-                ZIndex = 50;
-                // 立即变为水平并放大（参考 STS2 的 RefreshLayout）
-                SetAngleInstantly(0f);
-                SetScaleInstantly(new Vector2(1.0f, 1.0f));
-                Hovered?.Invoke(this);
-            }
-        }
-        else if (what == NotificationMouseExit)
-        {
-            _isHovered = false;
-            if (!_isDragging)
-            {
-                ZIndex = 0;
-                Unhovered?.Invoke(this);
-            }
         }
     }
 
@@ -416,8 +463,6 @@ public partial class SDHandCardHolder : Control
         ZIndex = 0;
         DragEnded?.Invoke(this, GetGlobalMousePosition());
     }
-
-    #endregion
 
     /// <summary>
     /// 设置默认目标位置（用于放回手牌）
