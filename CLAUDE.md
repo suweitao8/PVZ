@@ -83,6 +83,18 @@ Claude 拥有完整权限，可以直接执行任务，无需请求批准。
 
 **编译验证是强制性的，不可跳过。**
 
+**游戏测试流程：**
+完成代码修改并编译通过后，如果需要用户进行实际游戏测试：
+1. 使用命令启动 Godot 编辑器运行游戏
+2. 明确告知用户测试步骤和预期行为
+3. 等待用户反馈测试结果
+
+启动游戏命令：
+```bash
+# Windows 上启动 Godot 编辑器并运行游戏
+start "" "C:/Users/admin/Downloads/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mono_win64_console.exe" --path "D:/Github/PVZ"
+```
+
 ## 编码标准
 
 @.claude/docs/coding-standards.md

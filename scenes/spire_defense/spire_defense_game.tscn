@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3 uid="uid://spire_defense_game"]
+[gd_scene load_steps=5 format=3 uid="uid://spire_defense_game"]
 
 [ext_resource type="Script" path="res://src/SpireDefense/Core/SDGame.cs" id="1_game"]
+[ext_resource type="Script" path="res://src/SpireDefense/Core/SDGrid.cs" id="2_grid"]
+[ext_resource type="Script" path="res://src/SpireDefense/Core/SDHandArea.cs" id="3_hand"]
+[ext_resource type="Script" path="res://src/SpireDefense/Core/SDWaveManager.cs" id="4_wave"]
 
 [node name="SpireDefenseGame" type="Control"]
 layout_mode = 3
@@ -62,6 +65,7 @@ offset_top = 60.0
 offset_bottom = -180.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("2_grid")
 
 [node name="CellsContainer" type="Control" parent="Grid"]
 unique_name_in_owner = true
@@ -74,6 +78,7 @@ position = Vector2(0, 60)
 [node name="WaveManager" type="Control" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
+script = ExtResource("4_wave")
 
 [node name="HandArea" type="Control" parent="."]
 unique_name_in_owner = true
@@ -85,6 +90,7 @@ anchor_bottom = 1.0
 offset_top = -170.0
 grow_horizontal = 2
 grow_vertical = 0
+script = ExtResource("3_hand")
 
 [node name="Panel" type="ColorRect" parent="HandArea"]
 layout_mode = 1
