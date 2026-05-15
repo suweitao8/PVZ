@@ -391,7 +391,9 @@ public partial class SDHandCardHolder : Control
             if (!_isDragging)
             {
                 ZIndex = 50;
-                SetTargetScale(HoverScale);
+                // 立即变为水平并放大（参考 STS2 的 RefreshLayout）
+                SetAngleInstantly(0f);
+                SetScaleInstantly(new Vector2(1.0f, 1.0f));
                 Hovered?.Invoke(this);
             }
         }

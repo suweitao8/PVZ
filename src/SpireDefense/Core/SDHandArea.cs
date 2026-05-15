@@ -309,12 +309,30 @@ public partial class SDHandArea : Control
     public void OnCardHovered(SDHandCardHolder card)
     {
         if (_isDragging) return;
-        // SDHandCardHolder 自己处理悬停效果
+
+        // 悬停的卡牌会自己处理放大和角度
+        // 这里可以让其他卡牌稍微让开（参考 STS2 的 RefreshLayout）
+        var hoverIndex = _hand.IndexOf(card);
+        if (hoverIndex >= 0)
+        {
+            for (int i = 0; i < _hand.Count; i++)
+            {
+                if (i == hoverIndex) continue;
+                var otherCard = _hand[i];
+                // 其他牌稍微向两边让开
+                float offset = Mathf.Sign(i - hoverIndex) * Mathf.Lerp(30f, 0f, Mathf.Min(1f, Mathf.Abs(i - hoverIndex) / 3f));
+                var basePos = HandPosHelper.GetPosition(_hand.Count, i) * 0.5f;
+                var adjustedPos = new Vector2(basePos.X + offset, basePos.Y);
+                var centerPos = new Vector2(Size.X / 2f + adjustedPos.X, Size.Y / 2f + adjustedPos.Y);
+                otherCard.SetTargetPosition(centerPos);
+            }
+        }
     }
 
     public void OnCardUnhovered(SDHandCardHolder card)
     {
         if (_isDragging) return;
-        // SDHandCardHolder 自己处理悬停效果
+        // 恢复所有卡牌的位置
+        ArrangeCards();
     }
 }
