@@ -527,6 +527,8 @@ public partial class NGame : Control
 		if (skipLogo)
 		{
 			await PreloadManager.LoadMainMenuEssentials();
+			// 跳过 logo 时，确保过渡层是透明的
+			Transition.Visible = false;
 		}
 		else
 		{
