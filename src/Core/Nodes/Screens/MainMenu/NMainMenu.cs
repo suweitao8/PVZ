@@ -142,10 +142,10 @@ public partial class NMainMenu : Control, IScreenContext
 		_singleplayerButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(SingleplayerButtonPressed));
 		_singleplayerButton.SetLocalization("SINGLE_PLAYER");
 
-		// PvZ Mode button - from scene
+		// Spire Defense Mode button - from scene
 		_pvzModeButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/PvZModeButton");
 		_pvzModeButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OnPvZModeButtonPressed));
-		_pvzModeButton.SetLocalization("PVZ_MODE");
+		_pvzModeButton.SetLocalization("SPIRE_DEFENSE");
 
 		_multiplayerButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/MultiplayerButton");
 		_multiplayerButton.Connect(NClickableControl.SignalName.Released, Callable.From((Action<NButton>)OpenMultiplayerSubmenu));
