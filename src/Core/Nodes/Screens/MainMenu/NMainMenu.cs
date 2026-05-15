@@ -150,6 +150,8 @@ public partial class NMainMenu : Control, IScreenContext
 		_multiplayerButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/MultiplayerButton");
 		_multiplayerButton.Connect(NClickableControl.SignalName.Released, Callable.From((Action<NButton>)OpenMultiplayerSubmenu));
 		_multiplayerButton.SetLocalization("MULTIPLAYER");
+		// 单机模式：隐藏多人游戏按钮
+		_multiplayerButton.Visible = false;
 		_compendiumButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/CompendiumButton");
 		_compendiumButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OpenCompendiumSubmenu));
 		_compendiumButton.SetLocalization("COMPENDIUM");
@@ -343,7 +345,7 @@ public partial class NMainMenu : Control, IScreenContext
 		{
 			_timelineButton.Enable();
 			_singleplayerButton.Disable();
-			_multiplayerButton.Disable();
+			// _multiplayerButton.Disable(); // 单机模式：已隐藏
 			_compendiumButton.Disable();
 			_timelineButton.Visible = true;
 			_timelineNotificationDot.Visible = true;
@@ -361,7 +363,7 @@ public partial class NMainMenu : Control, IScreenContext
 			}
 			_timelineNotificationDot.Visible = false;
 			_singleplayerButton.Enable();
-			_multiplayerButton.Enable();
+			// _multiplayerButton.Enable(); // 单机模式：已隐藏
 			_compendiumButton.Enable();
 		}
 		else if (SaveManager.Instance.Progress.Epochs.Count > 1)
