@@ -25,7 +25,7 @@ public class SettingsSave : ISaveSchema
 	public Vector2I WindowSize { get; set; } = new Vector2I(1920, 1080);
 
 	[JsonPropertyName("fullscreen")]
-	public bool Fullscreen { get; set; } = true;
+	public bool Fullscreen { get; set; } = false;  // 开发模式：默认窗口模式
 
 	[JsonPropertyName("aspect_ratio")]
 	public AspectRatioSetting AspectRatioSetting { get; set; } = AspectRatioSetting.SixteenByNine;

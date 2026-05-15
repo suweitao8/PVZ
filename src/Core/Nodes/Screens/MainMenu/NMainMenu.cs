@@ -145,7 +145,7 @@ public partial class NMainMenu : Control, IScreenContext
 		// 尖塔防卫战按钮 - 从场景中获取
 		_spireDefenseButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/PvZModeButton");
 		_spireDefenseButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OnSpireDefenseButtonPressed));
-		_spireDefenseButton.SetLocalization("尖塔防卫战");
+		_spireDefenseButton.SetText("尖塔防卫战");  // 直接设置中文文本
 
 		_multiplayerButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/MultiplayerButton");
 		_multiplayerButton.Connect(NClickableControl.SignalName.Released, Callable.From((Action<NButton>)OpenMultiplayerSubmenu));

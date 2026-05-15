@@ -56,6 +56,18 @@ public partial class NMainMenuTextButton : NButton
 		RefreshLabel();
 	}
 
+	/// <summary>
+	/// 直接设置按钮文本（不通过本地化系统）
+	/// </summary>
+	public void SetText(string text)
+	{
+		_locString = null;
+		if (label != null)
+		{
+			label.Text = text;
+		}
+	}
+
 	public override void _Notification(int what)
 	{
 		if ((long)what == 2010)
