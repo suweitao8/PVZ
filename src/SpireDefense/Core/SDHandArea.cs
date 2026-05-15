@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Godot;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
-using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.SpireDefense.Entities.Units;
 using MegaCrit.Sts2.SpireDefense.UI;
 
@@ -112,9 +111,6 @@ public partial class SDHandArea : Control
 
             // 连接信号
             card.CardDragStarted += OnCardDragStarted;
-            card.CardDragEnded += OnCardDragEnded;
-            card.HolderFocused += OnCardFocused;
-            card.HolderUnfocused += OnCardUnfocused;
 
             UpdateDeckCount();
             Log.Info($"[SDHandArea] Drew card: {unitType}");
@@ -225,18 +221,6 @@ public partial class SDHandArea : Control
         }
 
         grid?.HidePlacementPreview();
-    }
-
-    private void OnCardFocused(NHandCardHolder holder)
-    {
-        if (_isDragging) return;
-        ArrangeCards();
-    }
-
-    private void OnCardUnfocused(NHandCardHolder holder)
-    {
-        if (_isDragging) return;
-        ArrangeCards();
     }
 
     public override void _Process(double delta)

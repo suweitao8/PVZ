@@ -1,6 +1,4 @@
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Godot;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
@@ -11,16 +9,19 @@ namespace MegaCrit.Sts2.SpireDefense.UI;
 
 /// <summary>
 /// 尖塔防卫战卡牌持有者
-/// 完全复用 STS2 的 NHandCardHolder 动画和交互逻辑
+/// 包装 STS2 的 NHandCardHolder，添加尖塔防卫战特有功能
 /// </summary>
-public partial class SDHandCardHolder : NHandCardHolder
+public partial class SDHandCardHolder : Control
 {
+    // 内部的 NHandCardHolder
+    private NHandCardHolder _innerHolder;
+
     // 卡牌数据
     private SDUnitType _unitType;
     private int _energyCost = 50;
     private UnitConfig? _unitConfig;
 
-    // 事件（重新定义以适配尖塔防卫战）
+    // 事件
     public event Action<SDHandCardHolder>? CardDragStarted;
     public event Action<SDHandCardHolder, Vector2>? CardDragEnded;
 
@@ -32,29 +33,45 @@ public partial class SDHandCardHolder : NHandCardHolder
     /// </summary>
     public static SDHandCardHolder Create(SDUnitType unitType)
     {
-        // 加载 STS2 的 hand_card_holder 场景
-        var scene = ResourceLoader.Load<PackedScene>("res://scenes/cards/holders/hand_card_holder.tscn");
-        if (scene == null)
-        {
-            Log.Error("[SDHandCardHolder] Failed to load hand_card_holder.tscn");
-            return null!;
-        }
-
-        var holder = scene.Instantiate<SDHandCardHolder>();
-        if (holder != null)
-        {
-            holder._unitType = unitType;
-            holder.SetupCard();
-        }
-        return holder!;
+        var holder = new SDHandCardHolder();
+        holder._unitType = unitType;
+        holder.SetupCard();
+        return holder;
     }
 
     public override void _Ready()
     {
-        // 不调用 base._Ready()，因为 NHandCardHolder 会抛出异常
-        // 直接调用 ConnectSignals
-        ConnectSignals();
+        CustomMinimumSize = new Vector2(150, 200);
+
+        // 加载并实例化 NHandCardHolder 场景
+        var scene = ResourceLoader.Load<PackedScene>("res://scenes/cards/holders/hand_card_holder.tscn");
+        if (scene == null)
+        {
+            Log.Error("[SDHandCardHolder] Failed to load hand_card_holder.tscn");
+            CreateFallbackVisuals();
+            return;
+        }
+
+        _innerHolder = scene.Instantiate<NHandCardHolder>();
+        if (_innerHolder == null)
+        {
+            Log.Error("[SDHandCardHolder] Failed to instantiate NHandCardHolder");
+            CreateFallbackVisuals();
+            return;
+        }
+
+        AddChild(_innerHolder);
+
+        // 创建卡牌视觉内容
         CreateCardVisuals();
+
+        // 连接信号
+        _innerHolder.Connect(NHandCardHolder.SignalName.HolderFocused,
+            Callable.From<NHandCardHolder>(OnHolderFocused));
+        _innerHolder.Connect(NHandCardHolder.SignalName.HolderUnfocused,
+            Callable.From<NHandCardHolder>(OnHolderUnfocused));
+        _innerHolder.Connect(NHandCardHolder.SignalName.HolderMouseClicked,
+            Callable.From<NCardHolder>(OnHolderClicked));
     }
 
     private void SetupCard()
@@ -63,15 +80,26 @@ public partial class SDHandCardHolder : NHandCardHolder
         _energyCost = _unitConfig?.EnergyCost ?? 50;
     }
 
+    private void CreateFallbackVisuals()
+    {
+        var bg = new ColorRect
+        {
+            Color = GetCardBackgroundColor(),
+            Size = new Vector2(150, 200),
+            Position = new Vector2(-75, -100)
+        };
+        AddChild(bg);
+    }
+
     private void CreateCardVisuals()
     {
-        // 创建简单的卡牌视觉效果
-        // NHandCardHolder 已经有 Hitbox，我们只需要添加卡牌内容
+        // 在 Hitbox 后面添加卡牌内容
         var content = new Control
         {
             Name = "CardContent",
             Position = new Vector2(-75, -100),
-            Size = new Vector2(150, 200)
+            Size = new Vector2(150, 200),
+            ZIndex = -1  // 在 Hitbox 后面
         };
 
         // 卡牌背景
@@ -126,29 +154,65 @@ public partial class SDHandCardHolder : NHandCardHolder
         };
         content.AddChild(preview);
 
-        AddChild(content);
-
-        // 连接父类的信号到我们的事件
-        Connect(SignalName.HolderFocused, Callable.From<NHandCardHolder>(OnHolderFocused));
-        Connect(SignalName.HolderUnfocused, Callable.From<NHandCardHolder>(OnHolderUnfocused));
-        Connect(SignalName.HolderMouseClicked, Callable.From<NCardHolder>(OnHolderClicked));
+        _innerHolder.AddChild(content);
     }
 
     private void OnHolderFocused(NHandCardHolder holder)
     {
-        // 通知 SDHandArea 重新排列
+        // 悬停时通知 SDHandArea
     }
 
     private void OnHolderUnfocused(NHandCardHolder holder)
     {
-        // 通知 SDHandArea 恢复排列
+        // 取消悬停时通知 SDHandArea
     }
 
     private void OnHolderClicked(NCardHolder holder)
     {
-        // 开始拖拽
         CardDragStarted?.Invoke(this);
     }
+
+    #region 代理 NHandCardHolder 方法
+
+    public void SetTargetPosition(Vector2 position)
+    {
+        _innerHolder?.SetTargetPosition(position);
+    }
+
+    public void SetTargetAngle(float angle)
+    {
+        _innerHolder?.SetTargetAngle(angle);
+    }
+
+    public void SetTargetScale(Vector2 scale)
+    {
+        _innerHolder?.SetTargetScale(scale);
+    }
+
+    public void SetAngleInstantly(float angle)
+    {
+        _innerHolder?.SetAngleInstantly(angle);
+    }
+
+    public void SetScaleInstantly(Vector2 scale)
+    {
+        _innerHolder?.SetScaleInstantly(scale);
+    }
+
+    public void SetPositionInstantly(Vector2 position)
+    {
+        if (_innerHolder != null)
+        {
+            _innerHolder.Position = position;
+        }
+    }
+
+    public void BeginDrag()
+    {
+        _innerHolder?.BeginDrag();
+    }
+
+    #endregion
 
     #region 颜色和文本
 
@@ -205,23 +269,4 @@ public partial class SDHandCardHolder : NHandCardHolder
     }
 
     #endregion
-
-    /// <summary>
-    /// 立即设置位置（无动画）
-    /// </summary>
-    public void SetPositionInstantly(Vector2 position)
-    {
-        Position = position;
-    }
-
-    /// <summary>
-    /// 设置默认目标位置（用于放回手牌）
-    /// </summary>
-    public void SetDefaultTargets(int handSize, int index)
-    {
-        ZIndex = 0;
-        SetTargetPosition(HandPosHelper.GetPosition(handSize, index) * 0.5f);
-        SetTargetAngle(HandPosHelper.GetAngle(handSize, index));
-        SetTargetScale(HandPosHelper.GetScale(handSize) * 0.8f);
-    }
 }
