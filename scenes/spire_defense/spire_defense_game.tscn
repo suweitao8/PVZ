@@ -1,0 +1,146 @@
+[gd_scene load_steps=2 format=3 uid="uid://spire_defense_game"]
+
+[ext_resource type="Script" path="res://src/SpireDefense/Core/SDGame.cs" id="1_game"]
+
+[node name="SpireDefenseGame" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_game")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.15, 0.1, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 60.0
+grow_horizontal = 2
+
+[node name="EnergyLabel" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "能量: 100"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WaveLabel" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "波次: 0/10"
+horizontal_alignment = 1
+
+[node name="Spacer2" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StartWaveButton" type="Button" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "开始波次"
+
+[node name="Grid" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 60.0
+offset_bottom = -180.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CellsContainer" type="Control" parent="Grid"]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="MonstersContainer" type="Node2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, 60)
+
+[node name="WaveManager" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="HandArea" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -170.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Panel" type="ColorRect" parent="HandArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.15, 0.12, 0.1, 0.9)
+
+[node name="CardsContainer" type="HBoxContainer" parent="HandArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 50.0
+offset_top = 20.0
+offset_right = -250.0
+theme_override_constants/separation = 10
+
+[node name="ButtonsContainer" type="VBoxContainer" parent="HandArea"]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="DrawButton" type="Button" parent="HandArea/ButtonsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "抽卡 (25)"
+
+[node name="RefreshButton" type="Button" parent="HandArea/ButtonsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "刷新 (50)"
+
+[node name="DeckCountLabel" type="Label" parent="HandArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -30.0
+offset_right = -20.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "牌库: 35"
+horizontal_alignment = 2
