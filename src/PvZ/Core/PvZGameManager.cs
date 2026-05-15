@@ -29,6 +29,12 @@ public partial class PvZGameManager : Node
     public delegate void SunChangedEventHandler(int currentSun);
 
     /// <summary>
+    /// 显示浮动文字
+    /// </summary>
+    [Signal]
+    public delegate void ShowFloatingTextEventHandler(Vector2 position, string text, Color color);
+
+    /// <summary>
     /// 波次开始时触发
     /// </summary>
     [Signal]
@@ -39,12 +45,6 @@ public partial class PvZGameManager : Node
     /// </summary>
     [Signal]
     public delegate void GameStateChangedEventHandler(PvZGameState newState);
-
-    /// <summary>
-    /// 阳光从天空掉落时触发
-    /// </summary>
-    [Signal]
-    public delegate void SunDroppedEventHandler(Vector2 position);
 
     #endregion
 
@@ -63,22 +63,16 @@ public partial class PvZGameManager : Node
     public int TotalWaves { get; set; } = 10;
 
     /// <summary>
-    /// 天空掉落阳光的基础间隔（秒）
+    /// 自动增加阳光的间隔（秒）
     /// </summary>
     [Export]
-    public float SunDropInterval { get; set; } = 7.5f;
+    public float AutoSunInterval { get; set; } = 10.0f;
 
     /// <summary>
-    /// 天空掉落阳光的随机偏移范围（秒）
+    /// 每次自动增加的阳光数量
     /// </summary>
     [Export]
-    public float SunDropRandomOffset { get; set; } = 2.5f;
-
-    /// <summary>
-    /// 每个天空阳光的值
-    /// </summary>
-    [Export]
-    public int SkySunValue { get; set; } = 25;
+    public int AutoSunAmount { get; set; } = 25;
 
     #endregion
 
@@ -88,9 +82,7 @@ public partial class PvZGameManager : Node
     public int SunCount { get; private set; }
     public int CurrentWave { get; private set; }
 
-    private float _sunDropTimer;
-    private float _nextSunDropTime;
-    private readonly Random _random = new();
+    private float _autoSunTimer;
 
     #endregion
 
@@ -100,6 +92,7 @@ public partial class PvZGameManager : Node
     public PvZWaveManager WaveManager { get; private set; }
     public Node2D ProjectileContainer { get; private set; }
     public Node2D SunContainer { get; private set; }
+    public Node2D FloatingTextContainer { get; private set; }
 
     #endregion
 
@@ -120,14 +113,14 @@ public partial class PvZGameManager : Node
     {
         SunCount = InitialSun;
         CurrentWave = 0;
-        _sunDropTimer = 0f;
-        _nextSunDropTime = GetNextSunDropTime();
+        _autoSunTimer = 0f;
 
         // 获取子节点引用
         GridManager = GetNode<PvZGridManager>("GridManager");
         WaveManager = GetNode<PvZWaveManager>("WaveManager");
         ProjectileContainer = GetNode<Node2D>("ProjectileContainer");
         SunContainer = GetNode<Node2D>("SunContainer");
+        FloatingTextContainer = GetNode<Node2D>("FloatingTextContainer");
 
         Log.Info($"[PvZ] Game initialized. Sun: {SunCount}, Waves: {TotalWaves}");
         EmitSignal(SignalName.SunChanged, SunCount);
@@ -140,24 +133,22 @@ public partial class PvZGameManager : Node
 
     public override void _Process(double delta)
     {
-        if (State != PvZGameState.Playing) return;
+        if (State != PvZGameState.Playing && State != PvZGameState.Preparing) return;
 
-        UpdateSunDrops((float)delta);
+        // 自动增加阳光
+        _autoSunTimer += (float)delta;
+        if (_autoSunTimer >= AutoSunInterval)
+        {
+            AddSun(AutoSunAmount);
+            _autoSunTimer = 0f;
+            Log.Info($"[PvZ] Auto sun +{AutoSunAmount}. Total: {SunCount}");
+        }
     }
 
     public override void _Input(InputEvent @event)
     {
         if (State == PvZGameState.Paused) return;
-
-        // 点击收集阳光
-        if (@event is InputEventMouseButton mouseButton && mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.Left)
-        {
-            HandleClick(mouseButton.Position);
-        }
-        else if (@event is InputEventScreenTouch touch && touch.Pressed)
-        {
-            HandleClick(touch.Position);
-        }
+        // 点击处理由各个子节点自行处理
     }
 
     #endregion
@@ -165,14 +156,21 @@ public partial class PvZGameManager : Node
     #region Sun Management
 
     /// <summary>
-    /// 添加阳光
+    /// 添加阳光，并在指定位置显示浮动文字
     /// </summary>
-    public void AddSun(int amount)
+    public void AddSun(int amount, Vector2? floatTextPos = null)
     {
         if (amount <= 0) return;
 
         SunCount += amount;
         EmitSignal(SignalName.SunChanged, SunCount);
+
+        // 显示浮动文字
+        if (floatTextPos != null)
+        {
+            EmitSignal(SignalName.ShowFloatingText, floatTextPos.Value, $"+{amount} ☀", new Color(1.0f, 0.85f, 0.0f));
+        }
+
         Log.Info($"[PvZ] Sun +{amount}. Total: {SunCount}");
     }
 
@@ -190,34 +188,6 @@ public partial class PvZGameManager : Node
         SunCount -= amount;
         EmitSignal(SignalName.SunChanged, SunCount);
         return true;
-    }
-
-    private void UpdateSunDrops(float delta)
-    {
-        _sunDropTimer += delta;
-
-        if (_sunDropTimer >= _nextSunDropTime)
-        {
-            DropSunFromSky();
-            _sunDropTimer = 0f;
-            _nextSunDropTime = GetNextSunDropTime();
-        }
-    }
-
-    private void DropSunFromSky()
-    {
-        // 随机位置（在网格范围内）
-        float x = _random.Next(100, 1700);
-        float y = _random.Next(100, 400);
-        Vector2 position = new Vector2(x, y);
-
-        EmitSignal(SignalName.SunDropped, position);
-        Log.Info($"[PvZ] Sun dropped at {position}");
-    }
-
-    private float GetNextSunDropTime()
-    {
-        return SunDropInterval + (float)(_random.NextDouble() * 2 - 1) * SunDropRandomOffset;
     }
 
     #endregion
@@ -318,19 +288,7 @@ public partial class PvZGameManager : Node
     public void ReturnToMainMenu()
     {
         GetTree().Paused = false;
-        // 切换回主菜单场景
-        // NGame.Instance.ReturnToMainMenu();
         GetTree().ChangeSceneToFile("res://scenes/screens/main_menu.tscn");
-    }
-
-    #endregion
-
-    #region Input Handling
-
-    private void HandleClick(Vector2 position)
-    {
-        // 检查是否点击了阳光
-        // 阳光收集逻辑在 PvZSun 节点中处理
     }
 
     #endregion

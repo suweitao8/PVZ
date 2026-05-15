@@ -16,14 +16,17 @@ public partial class PvZSunflower : PlantBase
     private const float PRODUCTION_INTERVAL = 24.0f;
     private const int SUN_VALUE = 50;
 
+    public PvZSunflower()
+    {
+        BodyColor = new Color(1.0f, 0.8f, 0.0f);
+        AccentColor = new Color(0.9f, 0.6f, 0.0f);
+        LabelText = "SF";
+        Size = 28f;
+    }
+
     public override void OnPlaced()
     {
         _productionTimer = PRODUCTION_INTERVAL;
-    }
-
-    public override void OnZombieInRow()
-    {
-        // 向日葵不攻击僵尸
     }
 
     public override void _Process(double delta)
@@ -41,95 +44,39 @@ public partial class PvZSunflower : PlantBase
 
     private void ProduceSun()
     {
-        // 创建阳光并添加到场景
-        var sun = new PvZSun(SUN_VALUE);
-        sun.Position = Position + new Vector2(0, -20);
-        PvZGameManager.Instance.SunContainer?.AddChild(sun);
+        // 直接添加阳光，并显示浮动文字
+        PvZGameManager.Instance?.AddSun(SUN_VALUE, Position + new Vector2(0, -30));
+
+        // 创建浮动文字效果
+        CreateFloatingText($"+{SUN_VALUE} ☀", new Color(1.0f, 0.85f, 0.0f));
     }
 
-    public override void _Draw()
+    private void CreateFloatingText(string text, Color color)
     {
-        // 绘制向日葵（临时用圆形代替）
-        DrawCircle(Vector2.Zero, 25, new Color(1.0f, 0.8f, 0.0f));
-        DrawCircle(new Vector2(-8, -5), 10, new Color(0.8f, 0.6f, 0.0f));
-        DrawCircle(new Vector2(8, -5), 10, new Color(0.8f, 0.6f, 0.0f));
-    }
-}
+        var container = PvZGameManager.Instance?.FloatingTextContainer;
+        if (container == null) return;
 
-/// <summary>
-/// 阳光实体
-/// </summary>
-public partial class PvZSun : Area2D
-{
-    public int Value { get; }
-
-    private bool _collected;
-    private float _lifetime;
-    private const float MAX_LIFETIME = 10.0f;
-
-    public PvZSun(int value = 25)
-    {
-        Value = value;
-
-        // 设置碰撞
-        var collision = new CollisionShape2D();
-        var shape = new CircleShape2D { Radius = 25 };
-        collision.Shape = shape;
-        AddChild(collision);
-
-        // 连接点击信号
-        InputEvent += OnInputEvent;
+        var floatingText = new PvZFloatingText();
+        floatingText.Position = Position + new Vector2(0, -50);
+        floatingText.Setup(text, color);
+        container.AddChild(floatingText);
     }
 
-    public override void _Ready()
+    protected override void DrawPlantSpecific()
     {
-        _lifetime = MAX_LIFETIME;
-    }
-
-    public override void _Process(double delta)
-    {
-        if (_collected) return;
-
-        _lifetime -= (float)delta;
-
-        if (_lifetime <= 0)
+        // 花瓣效果
+        for (int i = 0; i < 8; i++)
         {
-            QueueFree();
+            float angle = i * Mathf.Pi / 4;
+            Vector2 petalPos = new Vector2(Mathf.Cos(angle) * 20, Mathf.Sin(angle) * 20 - 5);
+            DrawCircle(petalPos, 8, AccentColor);
         }
 
-        // 闪烁效果（快消失时）
-        if (_lifetime < 2.0f)
+        // 进度指示
+        float progress = 1.0f - (_productionTimer / PRODUCTION_INTERVAL);
+        if (progress > 0)
         {
-            Modulate = new Color(1, 1, 1, _lifetime / 2.0f);
+            DrawArc(new Vector2(0, -Size - 10), 10, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Pi * 2 * progress, 16, new Color(1, 1, 0.5f), 2f);
         }
-    }
-
-    private void OnInputEvent(Node viewport, InputEvent @event, long shapeIdx)
-    {
-        if (_collected) return;
-
-        if (@event is InputEventMouseButton mouseButton && mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.Left)
-        {
-            Collect();
-        }
-        else if (@event is InputEventScreenTouch touch && touch.Pressed)
-        {
-            Collect();
-        }
-    }
-
-    private void Collect()
-    {
-        if (_collected) return;
-
-        _collected = true;
-        PvZGameManager.Instance?.AddSun(Value);
-        QueueFree();
-    }
-
-    public override void _Draw()
-    {
-        DrawCircle(Vector2.Zero, 20, new Color(1.0f, 1.0f, 0.0f));
-        DrawCircle(Vector2.Zero, 15, new Color(1.0f, 0.9f, 0.3f));
     }
 }
