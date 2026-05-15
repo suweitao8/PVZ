@@ -11,13 +11,14 @@ namespace MegaCrit.Sts2.SpireDefense.Core;
 /// <summary>
 /// 手牌区管理
 /// 参考 STS2 的手牌系统：固定 5 张手牌，弧形排列，打出后自动补牌
+/// 使用 SDHandCardHolder 复用 STS2 的动画逻辑
 /// </summary>
 public partial class SDHandArea : Control
 {
     private const int MaxHandSize = 5;  // 固定 5 张手牌
 
     // 卡牌列表
-    private readonly List<SDCard> _hand = new List<SDCard>();
+    private readonly List<SDHandCardHolder> _hand = new List<SDHandCardHolder>();
     private readonly List<SDUnitType> _deck = new List<SDUnitType>();
 
     // UI 节点
@@ -25,12 +26,9 @@ public partial class SDHandArea : Control
     private Label _deckCountLabel;
 
     // 拖拽相关
-    private SDCard _draggingCard;
+    private SDHandCardHolder _draggingCard;
     private bool _isDragging = false;
     private Line2D _dragArrow;  // 拖拽箭头
-
-    // 动画
-    private Tween _rearrangeTween;
 
     public int HandCount => _hand.Count;
     public int DeckCount => _deck.Count;
@@ -105,17 +103,24 @@ public partial class SDHandArea : Control
         var unitType = _deck[0];
         _deck.RemoveAt(0);
 
-        var card = SDCard.Create(unitType);
+        var card = SDHandCardHolder.Create(unitType);
         if (card != null)
         {
             _cardsContainer.AddChild(card);
             _hand.Add(card);
 
             // 连接信号
-            card.DragStarted += () => OnCardDragStarted(card);
-            card.DragEnded += (pos) => OnCardDragEnded(card, pos);
+            card.DragStarted += OnCardDragStarted;
+            card.DragEnded += OnCardDragEnded;
+            card.Hovered += OnCardHovered;
+            card.Unhovered += OnCardUnhovered;
+
+            // 设置初始位置（屏幕外）
+            card.SetPositionInstantly(new Vector2(Size.X / 2f, Size.Y + 100f));
+            card.SetScaleInstantly(Vector2.One * 0.5f);
 
             UpdateDeckCount();
+            ArrangeCards();
             Log.Info($"[SDHandArea] Drew card: {unitType}");
         }
     }
@@ -133,99 +138,42 @@ public partial class SDHandArea : Control
     #region 卡牌排列
 
     /// <summary>
-    /// 按弧形排列卡牌
+    /// 按弧形排列卡牌（使用 STS2 的 HandPosHelper）
     /// </summary>
     private void ArrangeCards(bool animate = true)
     {
         if (_hand.Count == 0) return;
-
-        _rearrangeTween?.Kill();
-        if (animate)
-        {
-            _rearrangeTween = CreateTween();
-        }
 
         for (int i = 0; i < _hand.Count; i++)
         {
             var card = _hand[i];
             if (card == _draggingCard) continue;
 
-            // 使用 STS2 的位置和角度计算
-            var pos = GetCardPosition(_hand.Count, i);
-            var angle = GetCardAngle(_hand.Count, i);
-            var scale = GetCardScale(_hand.Count);
+            // 使用 STS2 的 HandPosHelper 获取位置和角度
+            var pos = HandPosHelper.GetPosition(_hand.Count, i) * 0.5f;  // 缩放适配
+            var angle = HandPosHelper.GetAngle(_hand.Count, i);
+            var scale = HandPosHelper.GetScale(_hand.Count) * 0.8f;
 
             if (animate)
             {
-                _rearrangeTween.Parallel().TweenProperty(card, "position", pos, 0.2f).SetEase(Tween.EaseType.Out);
-                _rearrangeTween.Parallel().TweenProperty(card, "rotation", Mathf.DegToRad(angle), 0.2f).SetEase(Tween.EaseType.Out);
-                _rearrangeTween.Parallel().TweenProperty(card, "scale", scale, 0.2f).SetEase(Tween.EaseType.Out);
+                card.SetTargetPosition(pos);
+                card.SetTargetAngle(angle);
+                card.SetTargetScale(scale);
             }
             else
             {
-                card.Position = pos;
-                card.Rotation = Mathf.DegToRad(angle);
-                card.Scale = scale;
+                card.SetPositionInstantly(pos);
+                card.SetAngleInstantly(angle);
+                card.SetScaleInstantly(scale);
             }
         }
-    }
-
-    /// <summary>
-    /// 获取卡牌在弧形中的位置
-    /// </summary>
-    private Vector2 GetCardPosition(int handSize, int index)
-    {
-        // 基于 STS2 的位置数据，调整为我们的屏幕尺寸
-        float centerX = Size.X / 2f;
-        float baseY = Size.Y / 2f;
-
-        // 5 张牌的位置
-        var positions = new Vector2[]
-        {
-            new Vector2(-340f, 10f),
-            new Vector2(-170f, -30f),
-            new Vector2(0f, -50f),
-            new Vector2(170f, -30f),
-            new Vector2(340f, 10f)
-        };
-
-        if (handSize <= 5 && index < positions.Length)
-        {
-            return new Vector2(centerX + positions[index].X, baseY + positions[index].Y);
-        }
-
-        // 动态计算
-        float spacing = 170f;
-        float startX = centerX - (handSize - 1) * spacing / 2f;
-        return new Vector2(startX + index * spacing, baseY);
-    }
-
-    /// <summary>
-    /// 获取卡牌角度
-    /// </summary>
-    private float GetCardAngle(int handSize, int index)
-    {
-        var angles = new float[] { -8f, -4f, 0f, 4f, 8f };
-        if (handSize <= 5 && index < angles.Length)
-        {
-            return angles[index];
-        }
-        return 0f;
-    }
-
-    /// <summary>
-    /// 获取卡牌缩放
-    /// </summary>
-    private Vector2 GetCardScale(int handSize)
-    {
-        return Vector2.One * 0.8f;
     }
 
     #endregion
 
     #region 拖拽
 
-    private void OnCardDragStarted(SDCard card)
+    private void OnCardDragStarted(SDHandCardHolder card)
     {
         _draggingCard = card;
         _isDragging = true;
@@ -233,15 +181,10 @@ public partial class SDHandArea : Control
         // 显示拖拽箭头
         _dragArrow.Visible = true;
 
-        // 提升卡牌层级
-        card.ZIndex = 100;
-        card.Scale = Vector2.One * 1.1f;
-        card.Rotation = 0f;
-
         Log.Info($"[SDHandArea] Started dragging: {card.UnitType}");
     }
 
-    private void OnCardDragEnded(SDCard card, Vector2 globalPosition)
+    private void OnCardDragEnded(SDHandCardHolder card, Vector2 globalPosition)
     {
         _isDragging = false;
         _draggingCard = null;
@@ -353,20 +296,15 @@ public partial class SDHandArea : Control
     /// <summary>
     /// 鼠标悬停在卡牌上时的高亮
     /// </summary>
-    public void OnCardHovered(SDCard card)
+    public void OnCardHovered(SDHandCardHolder card)
     {
         if (_isDragging) return;
-
-        // 提升悬停的卡牌
-        card.ZIndex = 50;
-        var tween = CreateTween();
-        tween.Parallel().TweenProperty(card, "scale", Vector2.One * 0.9f, 0.1f);
-        tween.Parallel().TweenProperty(card, "position:y", card.Position.Y - 20f, 0.1f);
+        // SDHandCardHolder 自己处理悬停效果
     }
 
-    public void OnCardUnhovered(SDCard card)
+    public void OnCardUnhovered(SDHandCardHolder card)
     {
         if (_isDragging) return;
-        ArrangeCards();
+        // SDHandCardHolder 自己处理悬停效果
     }
 }
