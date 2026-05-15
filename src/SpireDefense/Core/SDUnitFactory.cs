@@ -80,6 +80,19 @@ public static class SDUnitFactory
             _ => new SDUnitBase(config)
         };
     }
+
+    /// <summary>
+    /// 获取单位配置
+    /// </summary>
+    public static UnitConfig GetUnitConfig(SDUnitType type)
+    {
+        if (!UnitConfigs.TryGetValue(type, out var config))
+        {
+            Log.Warn($"[SDUnitFactory] Unknown unit type: {type}");
+            return null;
+        }
+        return config;
+    }
 }
 
 /// <summary>

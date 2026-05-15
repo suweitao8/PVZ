@@ -9,13 +9,11 @@ namespace MegaCrit.Sts2.SpireDefense.Core;
 
 /// <summary>
 /// 手牌区管理
-/// 管理卡牌的显示、抽取、刷新
+/// 参考 STS2 的手牌系统：固定 5 张手牌，打出后自动补牌
 /// </summary>
 public partial class SDHandArea : Control
 {
-    private const int MaxHandSize = 5;
-    private const int DrawCost = 25;
-    private const int RefreshCost = 50;
+    private const int MaxHandSize = 5;  // 固定 5 张手牌
 
     // 卡牌列表
     private readonly List<SDCard> _hand = new List<SDCard>();
@@ -23,8 +21,6 @@ public partial class SDHandArea : Control
 
     // UI 节点
     private HBoxContainer _cardsContainer;
-    private Button _drawButton;
-    private Button _refreshButton;
     private Label _deckCountLabel;
 
     // 当前拖拽的卡牌
@@ -37,21 +33,15 @@ public partial class SDHandArea : Control
     public override void _Ready()
     {
         _cardsContainer = GetNode<HBoxContainer>("%CardsContainer");
-        _drawButton = GetNode<Button>("%DrawButton");
-        _refreshButton = GetNode<Button>("%RefreshButton");
         _deckCountLabel = GetNode<Label>("%DeckCountLabel");
-
-        // 连接按钮信号
-        _drawButton.Connect(Button.SignalName.Pressed, Callable.From(OnDrawPressed));
-        _refreshButton.Connect(Button.SignalName.Pressed, Callable.From(OnRefreshPressed));
 
         // 初始化牌库
         InitializeDeck();
 
-        // 开局抽 5 张
-        for (int i = 0; i < 5; i++)
+        // 开局抽满手牌（5 张）
+        for (int i = 0; i < MaxHandSize; i++)
         {
-            DrawCard(spendEnergy: false);
+            DrawCard();
         }
 
         UpdateDeckCount();
@@ -62,16 +52,16 @@ public partial class SDHandArea : Control
     {
         // 创建基础牌库
         // 每种单位若干张
-        for (int i = 0; i < 5; i++)
-            _deck.Add(SDUnitType.Ironclad);    // 铁卫
+        for (int i = 0; i < 8; i++)
+            _deck.Add(SDUnitType.Ironclad);    // 铁卫 - 基础坦克
+        for (int i = 0; i < 6; i++)
+            _deck.Add(SDUnitType.Silent);      // 影弓 - 远程输出
+        for (int i = 0; i < 6; i++)
+            _deck.Add(SDUnitType.Defect);      // 构造体 - 法师
         for (int i = 0; i < 4; i++)
-            _deck.Add(SDUnitType.Silent);      // 影弓
-        for (int i = 0; i < 4; i++)
-            _deck.Add(SDUnitType.Defect);      // 构造体
+            _deck.Add(SDUnitType.Necrobinder); // 死灵师 - 召唤
         for (int i = 0; i < 3; i++)
-            _deck.Add(SDUnitType.Necrobinder); // 死灵师
-        for (int i = 0; i < 2; i++)
-            _deck.Add(SDUnitType.Regent);      // 摄政王
+            _deck.Add(SDUnitType.Regent);      // 摄政王 - 精英
 
         // 洗牌
         ShuffleDeck();
@@ -89,60 +79,20 @@ public partial class SDHandArea : Control
 
     #region 抽卡
 
-    private void OnDrawPressed()
-    {
-        if (_hand.Count >= MaxHandSize)
-        {
-            Log.Info("[SDHandArea] Hand is full");
-            // TODO: 显示提示
-            return;
-        }
-
-        if (SDGame.Instance?.TrySpendEnergy(DrawCost) == true)
-        {
-            DrawCard(spendEnergy: true);
-        }
-        else
-        {
-            Log.Info("[SDHandArea] Not enough energy");
-            // TODO: 显示提示
-        }
-    }
-
-    private void OnRefreshPressed()
-    {
-        if (SDGame.Instance?.TrySpendEnergy(RefreshCost) == true)
-        {
-            // 弃掉所有手牌
-            foreach (var card in _hand)
-            {
-                card.QueueFree();
-            }
-            _hand.Clear();
-
-            // 重新洗牌
-            ShuffleDeck();
-
-            // 抽 5 张
-            for (int i = 0; i < MaxHandSize && _deck.Count > 0; i++)
-            {
-                DrawCard(spendEnergy: false);
-            }
-
-            UpdateDeckCount();
-            Log.Info("[SDHandArea] Hand refreshed");
-        }
-        else
-        {
-            Log.Info("[SDHandArea] Not enough energy");
-        }
-    }
-
-    private void DrawCard(bool spendEnergy)
+    /// <summary>
+    /// 抽一张牌（免费）
+    /// </summary>
+    private void DrawCard()
     {
         if (_deck.Count == 0)
         {
             Log.Info("[SDHandArea] Deck is empty");
+            return;
+        }
+
+        if (_hand.Count >= MaxHandSize)
+        {
+            Log.Info("[SDHandArea] Hand is full");
             return;
         }
 
@@ -163,6 +113,17 @@ public partial class SDHandArea : Control
 
             UpdateDeckCount();
             Log.Info($"[SDHandArea] Drew card: {unitType}");
+        }
+    }
+
+    /// <summary>
+    /// 打出卡牌后自动补牌
+    /// </summary>
+    private void DrawCardToFill()
+    {
+        if (_hand.Count < MaxHandSize && _deck.Count > 0)
+        {
+            DrawCard();
         }
     }
 
@@ -210,8 +171,12 @@ public partial class SDHandArea : Control
                         _hand.Remove(card);
                         card.QueueFree();
 
+                        // 自动补牌
+                        DrawCardToFill();
+
                         Log.Info($"[SDHandArea] Placed {card.UnitType} at ({row}, {col})");
                     }
+                    return;
                 }
             }
         }
@@ -241,16 +206,22 @@ public partial class SDHandArea : Control
     }
 
     #endregion
-}
 
-/// <summary>
-/// 单位类型枚举
-/// </summary>
-public enum SDUnitType
-{
-    Ironclad,    // 铁卫 - 坦克
-    Silent,      // 影弓 - 远程
-    Defect,      // 构造体 - 法师
-    Necrobinder, // 死灵师 - 召唤
-    Regent       // 摄政王 - 精英
+    /// <summary>
+    /// 手牌是否已满
+    /// </summary>
+    public bool IsHandFull => _hand.Count >= MaxHandSize;
+
+    /// <summary>
+    /// 获取手牌中的单位类型列表
+    /// </summary>
+    public List<SDUnitType> GetHandUnitTypes()
+    {
+        var types = new List<SDUnitType>();
+        foreach (var card in _hand)
+        {
+            types.Add(card.UnitType);
+        }
+        return types;
+    }
 }

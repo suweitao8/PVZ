@@ -1,5 +1,7 @@
 using System;
 using Godot;
+using MegaCrit.Sts2.Core.Animation;
+using MegaCrit.Sts2.Core.Bindings.MegaSpine;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.SpireDefense.Core;
 
@@ -7,9 +9,9 @@ namespace MegaCrit.Sts2.SpireDefense.Entities.Units;
 
 /// <summary>
 /// 防守单位基类
-/// 所有防守单位的基础实现
+/// 所有防守单位的基础实现，支持 Spine 动画
 /// </summary>
-public partial class SDUnitBase : Control
+public partial class SDUnitBase : Node2D
 {
     // 属性
     public int MaxHp { get; protected set; }
@@ -18,6 +20,7 @@ public partial class SDUnitBase : Control
     public float AttackRange { get; protected set; }
     public float AttackInterval { get; protected set; }
     public int EnergyCost { get; protected set; }
+    public SDUnitType UnitType { get; protected set; }
 
     // 状态
     public Vector2I GridPosition { get; set; }
@@ -30,8 +33,12 @@ public partial class SDUnitBase : Control
     // 目标
     protected Monsters.SDMonsterBase _target;
 
-    // 视觉
-    protected Control _body;
+    // Spine 动画
+    protected Node2D _spineNode;
+    protected MegaSprite _spineSprite;
+    protected CreatureAnimator _animator;
+
+    // UI
     protected Label _hpLabel;
     protected ColorRect _hpBar;
     protected ColorRect _hpBarBg;
@@ -53,33 +60,53 @@ public partial class SDUnitBase : Control
     public override void _Ready()
     {
         CreateVisuals();
+        SetupAnimator();
         Log.Info($"[SDUnitBase] Unit created: {GetType().Name}");
     }
 
     protected virtual void CreateVisuals()
     {
-        // 创建单位主体
-        _body = new Control();
-        AddChild(_body);
+        // 尝试加载 Spine 动画
+        if (!string.IsNullOrEmpty(_config.SpinePath))
+        {
+            CreateSpineVisuals();
+        }
+        else
+        {
+            CreateFallbackVisuals();
+        }
 
-        // 创建简单的圆形表示（后续替换为 Spine）
-        var circle = new CircleShape2D();
-        circle.Radius = 30;
+        // 创建血条
+        CreateHpBar();
+    }
 
+    protected virtual void CreateSpineVisuals()
+    {
+        // Spine 动画需要场景实例化，这里使用回退方案
+        // 未来可以改为实例化 scenes/creature_visuals/ 下的场景
+        CreateFallbackVisuals();
+    }
+
+    protected virtual void CreateFallbackVisuals()
+    {
+        // 创建简单的圆形表示
         var shape = new ColorRect
         {
             CustomMinimumSize = new Vector2(60, 60),
-            Position = new Vector2(-30, -30),
+            Position = new Vector2(-30, -60),
             Color = GetUnitColor()
         };
-        _body.AddChild(shape);
+        AddChild(shape);
+    }
 
+    protected virtual void CreateHpBar()
+    {
         // 血条背景
         _hpBarBg = new ColorRect
         {
             Color = new Color(0.2f, 0.2f, 0.2f),
             Size = new Vector2(50, 6),
-            Position = new Vector2(-25, -45)
+            Position = new Vector2(-25, -90)
         };
         AddChild(_hpBarBg);
 
@@ -88,14 +115,14 @@ public partial class SDUnitBase : Control
         {
             Color = Colors.Green,
             Size = new Vector2(50, 6),
-            Position = new Vector2(-25, -45)
+            Position = new Vector2(-25, -90)
         };
         AddChild(_hpBar);
 
         // HP 标签
         _hpLabel = new Label
         {
-            Position = new Vector2(-25, -60),
+            Position = new Vector2(-25, -105),
             Size = new Vector2(50, 20),
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -103,6 +130,20 @@ public partial class SDUnitBase : Control
         AddChild(_hpLabel);
 
         UpdateHpDisplay();
+    }
+
+    protected virtual void SetupAnimator()
+    {
+        if (_spineSprite == null) return;
+
+        // 创建动画状态机
+        var idleState = new AnimState("idle_loop", isLooping: true);
+        _animator = new CreatureAnimator(idleState, _spineSprite);
+
+        // 添加攻击动画过渡
+        var attackState = new AnimState("attack", isLooping: false);
+        attackState.NextState = idleState;
+        _animator.AddAnyState(CreatureAnimator.attackTrigger, attackState);
     }
 
     protected virtual Color GetUnitColor() => Colors.Blue;
@@ -152,12 +193,12 @@ public partial class SDUnitBase : Control
         float distance = Mathf.Abs(_target.Position.X - Position.X);
         if (distance > AttackRange) return;
 
+        // 播放攻击动画
+        _animator?.SetTrigger(CreatureAnimator.attackTrigger);
+
         // 造成伤害
         _target.TakeDamage(AttackDamage);
         Log.Info($"[SDUnitBase] {GetType().Name} attacked for {AttackDamage} damage");
-
-        // TODO: 播放攻击动画
-        // TODO: 播放攻击特效
     }
 
     public virtual void TakeDamage(int damage)
@@ -165,7 +206,8 @@ public partial class SDUnitBase : Control
         CurrentHp -= damage;
         UpdateHpDisplay();
 
-        // TODO: 播放受击动画
+        // 播放受击动画
+        _animator?.SetTrigger(CreatureAnimator.hitTrigger);
 
         if (CurrentHp <= 0)
         {
@@ -177,7 +219,8 @@ public partial class SDUnitBase : Control
     {
         Log.Info($"[SDUnitBase] {GetType().Name} died");
 
-        // TODO: 播放死亡动画
+        // 播放死亡动画
+        _animator?.SetTrigger(CreatureAnimator.deathTrigger);
 
         // 从网格移除
         var grid = SDGame.Instance?.Grid;
@@ -186,7 +229,8 @@ public partial class SDUnitBase : Control
             grid.RemoveUnit(GridPosition.Y, GridPosition.X);
         }
 
-        QueueFree();
+        // 延迟删除（等待动画）
+        GetTree().CreateTimer(0.5).Timeout += () => QueueFree();
     }
 
     protected void UpdateHpDisplay()
@@ -202,5 +246,19 @@ public partial class SDUnitBase : Control
             _hpBar.Size = new Vector2(50 * ratio, 6);
             _hpBar.Color = ratio > 0.5f ? Colors.Green : ratio > 0.25f ? Colors.Yellow : Colors.Red;
         }
+    }
+
+    /// <summary>
+    /// 获取卡牌图标路径
+    /// </summary>
+    public virtual string GetCardIconPath()
+    {
+        return UnitType switch
+        {
+            SDUnitType.Ironclad => "res://images/atlases/ui_atlas.sprites/card/energy_ironclad.tres",
+            SDUnitType.Silent => "res://images/atlases/ui_atlas.sprites/card/energy_silent.tres",
+            SDUnitType.Defect => "res://images/atlases/ui_atlas.sprites/card/energy_defect.tres",
+            _ => null
+        };
     }
 }
