@@ -16,20 +16,27 @@ public partial class SDCard : Control
     private int _energyCost;
     private bool _isDragging = false;
     private Vector2 _dragOffset;
+    private bool _isHovered = false;
 
     // UI 节点
     private ColorRect _background;
     private Label _nameLabel;
     private Label _costLabel;
     private Label _descLabel;
-    private Control _unitPreview;
 
     // 单位配置
     private UnitConfig _unitConfig;
 
+    // 原始位置（用于动画恢复）
+    private Vector2 _originalPosition;
+    private float _originalRotation;
+    private Vector2 _originalScale;
+
     // 事件
     public event Action DragStarted;
     public event Action<Vector2> DragEnded;
+    public event Action Hovered;
+    public event Action Unhovered;
 
     public SDUnitType UnitType => _unitType;
     public int EnergyCost => _energyCost;
@@ -45,14 +52,13 @@ public partial class SDCard : Control
     public override void _Ready()
     {
         CustomMinimumSize = new Vector2(120, 160);
-        MouseFilter = MouseFilterEnum.Pass;
+        MouseFilter = MouseFilterEnum.Stop;  // 接收鼠标事件
 
         CreateVisuals();
     }
 
     private void SetupCard()
     {
-        // 从工厂获取配置
         _unitConfig = SDUnitFactory.GetUnitConfig(_unitType);
         if (_unitConfig != null)
         {
@@ -60,7 +66,6 @@ public partial class SDCard : Control
         }
         else
         {
-            // 默认费用
             _energyCost = _unitType switch
             {
                 SDUnitType.Ironclad => 50,
@@ -80,7 +85,7 @@ public partial class SDCard : Control
         {
             Color = GetCardBackgroundColor(),
             Size = new Vector2(118, 158),
-            Position = new Vector2(1, 1)
+            Position = new Vector2(-59, -79)  // 居中
         };
         AddChild(_background);
 
@@ -90,22 +95,22 @@ public partial class SDCard : Control
             BorderColor = GetCardBorderColor(),
             EditorOnly = false,
             Size = new Vector2(118, 158),
-            Position = new Vector2(1, 1)
+            Position = new Vector2(-59, -79)
         };
         AddChild(border);
 
         // 能量消耗（左上角）
         var costBg = new ColorRect
         {
-            Color = new Color(0.1f, 0.1f, 0.1f, 0.8f),
+            Color = new Color(0.1f, 0.1f, 0.1f, 0.9f),
             Size = new Vector2(35, 35),
-            Position = new Vector2(5, 5)
+            Position = new Vector2(-55, -75)
         };
         AddChild(costBg);
 
         _costLabel = new Label
         {
-            Position = new Vector2(5, 8),
+            Position = new Vector2(-55, -72),
             Size = new Vector2(35, 25),
             HorizontalAlignment = HorizontalAlignment.Center,
             Text = _energyCost.ToString()
@@ -119,7 +124,7 @@ public partial class SDCard : Control
         {
             Color = new Color(0.15f, 0.15f, 0.15f),
             Size = new Vector2(100, 60),
-            Position = new Vector2(10, 45)
+            Position = new Vector2(-50, -35)
         };
         AddChild(previewBg);
 
@@ -128,14 +133,14 @@ public partial class SDCard : Control
         {
             Color = GetUnitColor(),
             Size = new Vector2(60, 40),
-            Position = new Vector2(30, 55)
+            Position = new Vector2(-30, -25)
         };
         AddChild(unitPreview);
 
         // 名称标签
         _nameLabel = new Label
         {
-            Position = new Vector2(5, 110),
+            Position = new Vector2(-55, 30),
             Size = new Vector2(110, 22),
             HorizontalAlignment = HorizontalAlignment.Center,
             Text = GetUnitName()
@@ -147,7 +152,7 @@ public partial class SDCard : Control
         // 描述标签
         _descLabel = new Label
         {
-            Position = new Vector2(5, 132),
+            Position = new Vector2(-55, 52),
             Size = new Vector2(110, 24),
             HorizontalAlignment = HorizontalAlignment.Center,
             Text = GetUnitDescription(),
@@ -162,11 +167,11 @@ public partial class SDCard : Control
     {
         return _unitType switch
         {
-            SDUnitType.Ironclad => new Color(0.35f, 0.18f, 0.18f),    // 深红
-            SDUnitType.Silent => new Color(0.18f, 0.28f, 0.2f),       // 深绿
-            SDUnitType.Defect => new Color(0.18f, 0.18f, 0.35f),      // 深蓝
-            SDUnitType.Necrobinder => new Color(0.25f, 0.18f, 0.35f), // 深紫
-            SDUnitType.Regent => new Color(0.35f, 0.28f, 0.15f),      // 金棕
+            SDUnitType.Ironclad => new Color(0.35f, 0.18f, 0.18f),
+            SDUnitType.Silent => new Color(0.18f, 0.28f, 0.2f),
+            SDUnitType.Defect => new Color(0.18f, 0.18f, 0.35f),
+            SDUnitType.Necrobinder => new Color(0.25f, 0.18f, 0.35f),
+            SDUnitType.Regent => new Color(0.35f, 0.28f, 0.15f),
             _ => new Color(0.25f, 0.25f, 0.25f)
         };
     }
@@ -224,22 +229,19 @@ public partial class SDCard : Control
         };
     }
 
-    #region 拖拽
+    #region 鼠标事件
 
     public override void _GuiInput(InputEvent @event)
     {
-        if (@event is InputEventMouseButton mouseButton)
+        if (@event is InputEventMouseButton mouseButton && mouseButton.ButtonIndex == MouseButton.Left)
         {
-            if (mouseButton.ButtonIndex == MouseButton.Left)
+            if (mouseButton.Pressed)
             {
-                if (mouseButton.Pressed)
-                {
-                    StartDrag(mouseButton.Position);
-                }
-                else
-                {
-                    EndDrag();
-                }
+                StartDrag(mouseButton.Position);
+            }
+            else
+            {
+                EndDrag();
             }
         }
     }
@@ -248,21 +250,52 @@ public partial class SDCard : Control
     {
         if (_isDragging && @event is InputEventMouseMotion motion)
         {
-            // 跟随鼠标
             GlobalPosition = GetGlobalMousePosition() - _dragOffset;
         }
     }
+
+    public override void _Notification(int what)
+    {
+        // 鼠标进入
+        if (what == NotificationMouseEnter)
+        {
+            _isHovered = true;
+            if (!_isDragging)
+            {
+                // 悬停效果
+                ZIndex = 50;
+                var tween = CreateTween();
+                tween.Parallel().TweenProperty(this, "scale", Scale * 1.1f, 0.1f);
+                Hovered?.Invoke();
+            }
+        }
+        // 鼠标离开
+        else if (what == NotificationMouseExit)
+        {
+            _isHovered = false;
+            if (!_isDragging)
+            {
+                ZIndex = 0;
+                Unhovered?.Invoke();
+            }
+        }
+    }
+
+    #endregion
+
+    #region 拖拽
 
     private void StartDrag(Vector2 localPosition)
     {
         _isDragging = true;
         _dragOffset = localPosition;
+        _originalPosition = Position;
+        _originalRotation = Rotation;
+        _originalScale = Scale;
 
-        // 提升显示层级
         ZIndex = 100;
-
-        // 放大效果
-        Scale = new Vector2(1.2f, 1.2f);
+        Rotation = 0f;
+        Scale = Vector2.One * 1.1f;
 
         DragStarted?.Invoke();
         Log.Info($"[SDCard] Started dragging: {_unitType}");
@@ -274,7 +307,6 @@ public partial class SDCard : Control
 
         _isDragging = false;
         ZIndex = 0;
-        Scale = Vector2.One;
 
         DragEnded?.Invoke(GetGlobalMousePosition());
         Log.Info($"[SDCard] Ended dragging: {_unitType}");
