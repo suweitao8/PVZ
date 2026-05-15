@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.SpireDefense.Entities.Units;
 using MegaCrit.Sts2.SpireDefense.UI;
 
@@ -110,18 +111,12 @@ public partial class SDHandArea : Control
             _hand.Add(card);
 
             // 连接信号
-            card.DragStarted += OnCardDragStarted;
-            card.DragEnded += OnCardDragEnded;
-            card.Hovered += OnCardHovered;
-            card.Unhovered += OnCardUnhovered;
-
-            // 设置初始位置（从屏幕下方进入）
-            float centerX = Size.X / 2f;
-            card.SetPositionInstantly(new Vector2(centerX, Size.Y + 100f));
-            card.SetScaleInstantly(Vector2.One * 0.5f);
+            card.CardDragStarted += OnCardDragStarted;
+            card.CardDragEnded += OnCardDragEnded;
+            card.HolderFocused += OnCardFocused;
+            card.HolderUnfocused += OnCardUnfocused;
 
             UpdateDeckCount();
-            ArrangeCards();
             Log.Info($"[SDHandArea] Drew card: {unitType}");
         }
     }
@@ -222,9 +217,6 @@ public partial class SDHandArea : Control
                         // 自动补牌
                         DrawCard();
 
-                        // 重新排列
-                        ArrangeCards();
-
                         placed = true;
                         Log.Info($"[SDHandArea] Placed {card.UnitType} at ({row}, {col})");
                     }
@@ -233,12 +225,18 @@ public partial class SDHandArea : Control
         }
 
         grid?.HidePlacementPreview();
+    }
 
-        // 如果没有放置成功，恢复卡牌位置
-        if (!placed)
-        {
-            ArrangeCards();
-        }
+    private void OnCardFocused(NHandCardHolder holder)
+    {
+        if (_isDragging) return;
+        ArrangeCards();
+    }
+
+    private void OnCardUnfocused(NHandCardHolder holder)
+    {
+        if (_isDragging) return;
+        ArrangeCards();
     }
 
     public override void _Process(double delta)
@@ -302,37 +300,4 @@ public partial class SDHandArea : Control
     }
 
     #endregion
-
-    /// <summary>
-    /// 鼠标悬停在卡牌上时的高亮
-    /// </summary>
-    public void OnCardHovered(SDHandCardHolder card)
-    {
-        if (_isDragging) return;
-
-        // 悬停的卡牌会自己处理放大和角度
-        // 这里可以让其他卡牌稍微让开（参考 STS2 的 RefreshLayout）
-        var hoverIndex = _hand.IndexOf(card);
-        if (hoverIndex >= 0)
-        {
-            for (int i = 0; i < _hand.Count; i++)
-            {
-                if (i == hoverIndex) continue;
-                var otherCard = _hand[i];
-                // 其他牌稍微向两边让开
-                float offset = Mathf.Sign(i - hoverIndex) * Mathf.Lerp(30f, 0f, Mathf.Min(1f, Mathf.Abs(i - hoverIndex) / 3f));
-                var basePos = HandPosHelper.GetPosition(_hand.Count, i) * 0.5f;
-                var adjustedPos = new Vector2(basePos.X + offset, basePos.Y);
-                var centerPos = new Vector2(Size.X / 2f + adjustedPos.X, Size.Y / 2f + adjustedPos.Y);
-                otherCard.SetTargetPosition(centerPos);
-            }
-        }
-    }
-
-    public void OnCardUnhovered(SDHandCardHolder card)
-    {
-        if (_isDragging) return;
-        // 恢复所有卡牌的位置
-        ArrangeCards();
-    }
 }
