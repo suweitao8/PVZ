@@ -1,18 +1,24 @@
-# Slay the Spire 2 — Claude Code Game Studios 配置
+# 尖塔防卫战 — Claude Code Game Studios 配置
 
-独立游戏开发，由 49 个协作的 Claude Code 子代理管理。
-每个代理拥有特定领域，强制关注点分离和质量。
+独立游戏开发，由 Claude Code 子代理管理。
 
 ## 项目信息
 
-- **游戏**: Slay the Spire 2 (杀戮尖塔2)
-- **类型**: Roguelike 卡牌构建游戏
+- **游戏**: 尖塔防卫战 (Spire Defense)
+- **类型**: 塔防小游戏（借鉴《植物大战僵尸》玩法）
 - **引擎**: Godot 4.5
 - **语言**: C# (主要), GDScript (工具)
 
+## 核心玩法
+
+- **网格部署**: 5行×9列网格，放置防守单位
+- **卡牌系统**: 从手牌拖拽放置单位
+- **波次防守**: 抵御 10 波怪物进攻
+- **角色复用**: 直接使用 STS2 角色（Ironclad、Silent、Defect 等）
+
 ## 技术栈
 
-- **引擎**: Godot 4.5
+- **引擎**: Godot 4.5.1 (.NET 版本)
 - **语言**: C# (.NET 9.0)
 - **渲染**: Forward+ (Windows 上使用 D3D12)
 - **物理**: 禁用 (Dummy)
@@ -21,9 +27,27 @@
 - **动画**: Spine (通过 MegaSpine 绑定)
 - **崩溃报告**: Sentry
 
+## 语言配置
+
+**纯中文游戏，不支持多语言。**
+
+- 所有 UI 文本直接使用中文
+- 不使用本地化系统 (LocManager)
+- 日志输出使用中文
+
 ## 项目结构
 
-@.claude/docs/directory-structure.md
+```
+src/
+  SpireDefense/           # 尖塔防卫战核心代码
+    Core/                 # 游戏控制器、网格、波次管理
+    Entities/
+      Units/              # 防守单位（Ironclad、Silent 等）
+      Monsters/           # 进攻怪物（Cultist、Gremlin 等）
+    UI/                   # 卡牌、手牌区
+scenes/
+  spire_defense/          # 尖塔防卫战场景
+```
 
 ## 引擎版本参考
 

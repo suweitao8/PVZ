@@ -50,7 +50,7 @@ public partial class NMainMenu : Control, IScreenContext
 
 	private NMainMenuTextButton _singleplayerButton;
 
-	private NMainMenuTextButton _pvzModeButton;  // Spire Defense button
+	private NMainMenuTextButton _spireDefenseButton;  // 尖塔防卫战按钮
 
 	private NMainMenuTextButton _compendiumButton;
 
@@ -98,7 +98,7 @@ public partial class NMainMenu : Control, IScreenContext
 
 	public Control BlurBackstop { get; private set; }
 
-	private NButton[] MainMenuButtons => new NButton[9] { _continueButton, _abandonRunButton, _singleplayerButton, _pvzModeButton, _multiplayerButton, _timelineButton, _settingsButton, _compendiumButton, _quitButton };
+	private NButton[] MainMenuButtons => new NButton[9] { _continueButton, _abandonRunButton, _singleplayerButton, _spireDefenseButton, _multiplayerButton, _timelineButton, _settingsButton, _compendiumButton, _quitButton };
 
 	public NMainMenuSubmenuStack SubmenuStack { get; private set; }
 
@@ -142,10 +142,10 @@ public partial class NMainMenu : Control, IScreenContext
 		_singleplayerButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(SingleplayerButtonPressed));
 		_singleplayerButton.SetLocalization("SINGLE_PLAYER");
 
-		// Spire Defense Mode button - from scene
-		_pvzModeButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/PvZModeButton");
-		_pvzModeButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OnPvZModeButtonPressed));
-		_pvzModeButton.SetLocalization("SPIRE_DEFENSE");
+		// 尖塔防卫战按钮 - 从场景中获取
+		_spireDefenseButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/PvZModeButton");
+		_spireDefenseButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OnSpireDefenseButtonPressed));
+		_spireDefenseButton.SetLocalization("尖塔防卫战");
 
 		_multiplayerButton = GetNode<NMainMenuTextButton>("MainMenuTextButtons/MultiplayerButton");
 		_multiplayerButton.Connect(NClickableControl.SignalName.Released, Callable.From((Action<NButton>)OpenMultiplayerSubmenu));
@@ -206,15 +206,15 @@ public partial class NMainMenu : Control, IScreenContext
 
 
 	/// <summary>
-	/// Handle Spire Defense button press
+	/// 尖塔防卫战按钮点击处理
 	/// </summary>
-	private void OnPvZModeButtonPressed(NButton button)
+	private void OnSpireDefenseButtonPressed(NButton button)
 	{
-		Log.Info("[MainMenu] Spire Defense button pressed");
-		TaskHelper.RunSafely(LaunchPvZGame());
+		Log.Info("[MainMenu] 尖塔防卫战按钮被点击");
+		TaskHelper.RunSafely(LaunchSpireDefenseGame());
 	}
 
-	private async Task LaunchPvZGame()
+	private async Task LaunchSpireDefenseGame()
 	{
 		await NGame.Instance.Transition.FadeOut();
 		GetTree().ChangeSceneToFile("res://scenes/spire_defense/spire_defense_game.tscn");

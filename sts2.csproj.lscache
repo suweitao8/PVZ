@@ -2421,7 +2421,6 @@ src/Core/
     PlayerLeftMessage.cs
     PlayerReconnectedMessage.cs
     PlayerRejoinedMessage.cs
-  MultiplayerDebugUtil.cs
   NetClientGameService.cs
   NetConst.cs
   NetHostGameService.cs
@@ -3558,22 +3557,32 @@ src/GameInfo/
   NeowBonusInfo.cs
   PotionInfo.cs
   RelicInfo.cs
-src/PvZ/Core/
- PvZGameManager.cs
- PvZGameState.cs
- PvZGridManager.cs
- PvZWaveManager.cs
-src/PvZ/Entities/Plants/
- PlantBase.cs
- PvZPlants.cs
- PvZSunflower.cs
-src/PvZ/Entities/Zombies/
- PvZZombies.cs
- ZombieBase.cs
-src/PvZ/
- Projectiles/PvZPea.cs
- UI/PvZPlantPanel.cs
-src/SourceGeneration/GenerateSubtypesAttribute.cs
+src/
+ SourceGeneration/GenerateSubtypesAttribute.cs
+ SpireDefense/Core/
+  SDGame.cs
+  SDGrid.cs
+  SDGridCell.cs
+  SDHandArea.cs
+  SDUnitFactory.cs
+  SDWaveManager.cs
+ SpireDefense/Entities/Monsters/
+  SDCultistMonster.cs
+  SDFungiBeastMonster.cs
+  SDGremlinMonster.cs
+  SDHexaghostMonster.cs
+  SDLagavulinMonster.cs
+  SDMonsterBase.cs
+  SDMonsterFactory.cs
+  SDSlaverMonster.cs
+ SpireDefense/Entities/Units/
+  SDDefectUnit.cs
+  SDIroncladUnit.cs
+  SDNecrobinderUnit.cs
+  SDRegentUnit.cs
+  SDSilentUnit.cs
+  SDUnitBase.cs
+ SpireDefense/UI/SDCard.cs
 System/Text/RegularExpressions/Generated/
  -RegexGenerator_g-FACC081AAF3D765EFF87A82C4FBB77F6FD3EA759AA2D03D993988F88E97CC0B5B__CamelCaseRegex_0.cs
  -RegexGenerator_g-FACC081AAF3D765EFF87A82C4FBB77F6FD3EA759AA2D03D993988F88E97CC0B5B__ConsecutiveSpaces_6.cs
