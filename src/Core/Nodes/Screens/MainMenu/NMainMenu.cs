@@ -50,7 +50,7 @@ public partial class NMainMenu : Control, IScreenContext
 
 	private NMainMenuTextButton _singleplayerButton;
 
-	private NMainMenuTextButton _pvzModeButton;  // PvZ Mode button
+	private NMainMenuTextButton _pvzModeButton;  // Spire Defense button
 
 	private NMainMenuTextButton _compendiumButton;
 
@@ -206,18 +206,18 @@ public partial class NMainMenu : Control, IScreenContext
 
 
 	/// <summary>
-	/// Handle PvZ Mode button press
+	/// Handle Spire Defense button press
 	/// </summary>
 	private void OnPvZModeButtonPressed(NButton button)
 	{
-		Log.Info("[MainMenu] PvZ Mode button pressed");
+		Log.Info("[MainMenu] Spire Defense button pressed");
 		TaskHelper.RunSafely(LaunchPvZGame());
 	}
 
 	private async Task LaunchPvZGame()
 	{
 		await NGame.Instance.Transition.FadeOut();
-		GetTree().ChangeSceneToFile("res://scenes/pvz/pvz_game.tscn");
+		GetTree().ChangeSceneToFile("res://scenes/spire_defense/spire_defense_game.tscn");
 	}
 
 	private void ConnectMainMenuTextButtonFocusLogic()
